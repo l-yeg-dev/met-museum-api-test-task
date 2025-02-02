@@ -2,58 +2,43 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use App\DTOs\ArtworkDTO;
 use Exception;
-use Illuminate\Support\Facades\Log;
+use App\Clients\MetMuseumClientProvider;
 
 class MetMuseumService
 {
-    private $baseUrl = 'https://collectionapi.metmuseum.org/public/collection/v1';
+    private MetMuseumClientProvider $client;
+    private int $cacheTtl;
 
-    public function getDepartments()
+    public function __construct(MetMuseumClientProvider $client)
     {
-        return Cache::remember('departments', 3600, function () {
-            $response = Http::get("{$this->baseUrl}/departments");
+        $this->client = $client;
+        $this->cacheTtl = Config::get('services.cache_ttl', 3600);
+    }
 
-            if ($response->failed()) {
-                throw new Exception('Failed to fetch departments');
-            }
-
-            return $response->json()['departments'];
+    public function getDepartments(): array
+    {
+        return Cache::remember('departments', $this->cacheTtl, function () {
+            return $this->client->fetchDepartments();
         });
     }
 
-    public function searchArtworks($departmentId, $searchTerm)
+    public function searchArtworks(int $departmentId, string $searchTerm): array
     {
-        $response = Http::get("{$this->baseUrl}/search", [
-            'q' => $searchTerm,
-            'departmentId' => $departmentId
-        ]);
-
-        if ($response->failed()) {
-            throw new Exception('Failed to fetch search results');
-        }
-
-        $objectIds = collect($response->json('objectIDs', []))->take(10);
-        return $objectIds
-            ->map(fn($id) => $this->getObject($id))
-            ->filter(fn($item) => !!$item)
-            ->all();
+        return Cache::remember("search_{$departmentId}_{$searchTerm}", $this->cacheTtl, function () use ($departmentId, $searchTerm) {
+            return $this->client->fetchSearchResults($departmentId, $searchTerm);
+        });
     }
 
-    public function getObject($id)
+    public function getObject(int $id): ?ArtworkDTO
     {
-        return Cache::remember("artwork_{$id}", 3600, function () use ($id) {
-            $response = Http::get("{$this->baseUrl}/objects/{$id}");
-
-            if ($response->failed()) {
-                Log::error("Failed to fetch artwork with ID: {$id}");
-                return 0;
-            }
-
-            return new ArtworkDTO($response->json());
+        return Cache::remember("artwork_{$id}", $this->cacheTtl, function () use ($id) {
+            return $this->client->fetchObject($id);
         });
     }
 }

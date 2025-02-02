@@ -30,5 +30,7 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+    'met_museum_api_base_url' => env('MET_MUSEUM_API_BASE_URL'),
+    'met_museum_cache_ttl' => env('MET_MUSEUM_CACHE_TTL', 3600),
 
 ];

@@ -13,7 +13,6 @@ class ArtworkDTO
     {
         $this->title = $data['title'] ?? 'Unknown Title';
         $this->image = $data['primaryImage'] ?? null;
-        $this->artist = $data['artistDisplayName'] ?? 'Unknown Artist';
         $this->date = $data['objectDate'] ?? 'Unknown Date';
     }
 
@@ -22,7 +21,6 @@ class ArtworkDTO
         return [
             'title' => $this->title,
             'image' => $this->image,
-            'artist' => $this->artist,
             'date' => $this->date,
         ];
     }
